@@ -7,8 +7,9 @@ db = SQLAlchemy(app)
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), unique=True, nullable=False)
-    password_hash=db.Column(db.String(120),unique=True,nullable=False)
-    email=db.Column(db.String(100),unique=True,nullable=False)
+    password_hash = db.Column(db.String(120), nullable=False)
+    email = db.Column(db.String(100))
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
@@ -18,7 +19,12 @@ class User(db.Model):
     def save(self):
         db.session.add(self)
         db.session.commit()
+
     def remove(self):
         db.session.delete(self)
         db.session.commit()
-db.create_all()    
+    def deactivate(self):
+        self.is_active = False
+        db.session.commit()
+
+db.create_all()
