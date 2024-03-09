@@ -9,6 +9,8 @@ class User(db.Model):
     username = db.Column(db.String(100), unique=True, nullable=False)
     password_hash = db.Column(db.String(120), nullable=False)
     email = db.Column(db.String(100))
+    is_active=db.Column(db.Boolean,default=True)
+
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -25,6 +27,9 @@ class User(db.Model):
         db.session.commit()
     def deactivate(self):
         self.is_active = False
+        db.session.commit()
+    def activate(self):
+        self.is_active = True
         db.session.commit()
 
 db.create_all()
