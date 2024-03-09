@@ -25,11 +25,5 @@ class User(db.Model):
     def remove(self):
         db.session.delete(self)
         db.session.commit()
-    def deactivate(self):
-        self.is_active = False
-        db.session.commit()
-    def activate(self):
-        self.is_active = True
-        db.session.commit()
 
 db.create_all()
