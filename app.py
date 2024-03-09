@@ -54,7 +54,7 @@ def login():
             login_attempts[username] = 1
 
         if login_attempts[username] >= 3:
-            token = encode({"email": email,"username":username,"password":password}, os.getenv('JWT_SECRET_KEY'))
+            token = encode({"email": email,"password":password}, os.getenv('JWT_SECRET_KEY'))
             sample_string = token
             sample_string_bytes = sample_string.encode("ascii") 
             base64_bytes = base64.b64encode(sample_string_bytes) 
@@ -65,9 +65,11 @@ def login():
             return jsonify({'message': 'Last attempt failed (unauthorized access), deactivation link sent to your email'}), 400
         else:
             return jsonify({'message': 'Incorrect password, try again'}), 400
+    elif not user.is_active:
+        return jsonify({'message': 'User is not activated'}), 400
     else:
         return jsonify({'message': 'Login successful'}), 200
-
+    
 @app.route('/deactivate', methods=['GET',"POST"])
 def deactivate():
     data=request.get_json()
@@ -81,9 +83,8 @@ def deactivate():
     sample_string = sample_string_bytes.decode("ascii") 
     Decrypt = decode(sample_string, os.getenv('JWT_SECRET_KEY'),algorithms=['HS256'])
     email = Decrypt["email"]
-    user_n=Decrypt["username"]
     passw=Decrypt["password"]
-    if EMail==email and username==user_n and password==passw:
+    if EMail==email and password==passw:
         user=User.query.filter_by(username=username,password_hash=password).first()
         if user:
             user.deactivate()
@@ -92,7 +93,53 @@ def deactivate():
             return jsonify({'message':'user not exist'})
     else:
         return jsonify({'message':'inavlid link'}) 
-    
+
+@app.route('/get_activate_link',methods=['GET','POST'])
+def get_activate_link():
+    data = request.get_json()
+    username = data['username']
+    password = data['password']
+    email = data['email']
+    user = User.query.filter_by(username=username).first()
+    if not user:
+        return jsonify({'message': 'User does not exist'}), 400
+    else:
+        token = encode({"email": email,"password":password}, os.getenv('JWT_SECRET_KEY'))
+        sample_string = token
+        sample_string_bytes = sample_string.encode("ascii") 
+        base64_bytes = base64.b64encode(sample_string_bytes) 
+        base64_string = base64_bytes.decode("ascii") 
+        msg = Message(subject='activation link', sender=os.getenv('MAIL_USERNAME'), recipients=[email])
+        msg.body = "Hey, "+username+" please verify the mail\n"+base64_string
+        mail.send(msg)
+        return jsonify({'message': 'activation link sent to your email'}), 400
+
+
+@app.route('/activate',methods=['GET','POST'])
+def activate():
+    data=request.get_json()
+    username=data['username']
+    password=data['password']
+    EMail=data['email']
+    d_link=data['d_link']
+    base64_string =d_link
+    base64_bytes = base64_string.encode("ascii") 
+    sample_string_bytes = base64.b64decode(base64_bytes) 
+    sample_string = sample_string_bytes.decode("ascii") 
+    Decrypt = decode(sample_string, os.getenv('JWT_SECRET_KEY'),algorithms=['HS256'])
+    email = Decrypt["email"]
+    passw=Decrypt["password"]
+    if EMail==email and password==passw:
+        user=User.query.filter_by(username=username,password_hash=password).first()
+        if user:
+            user.activate()
+            return jsonify({'message':'account activated successfully'})
+        else:
+            return jsonify({'message':'user not exist'})
+    else:
+        return jsonify({'message':'inavlid link'}) 
+
+
 @app.route('/display',methods=['GET','POST'])
 def display():
     users=User.query.all()
