@@ -57,7 +57,7 @@ def login():
             link = encode({"email": email}, os.getenv('JWT_SECRET_KEY'))
             activation_link = f"http://127.0.0.1:5000/deactivate?link={link}"
             msg = Message(subject='Unauthorized Access', sender=os.getenv('MAIL_USERNAME'), recipients=[email])
-            msg.body = f"Hey, {username}! Your account is temporarily locked due to multiple login attempts. Click the link to deactivate your account: {activation_link}"
+            msg.body = "Hey "+ username + "Your account is temporarily locked due to multiple login attempts. Click the link to deactivate your account:" + activation_link
             mail.send(msg)
             return jsonify({'message': 'Last attempt failed (unauthorized access), deactivation link sent to your email'}), 400
         else:
@@ -94,13 +94,13 @@ def get_activate():
         link = encode({"email": email,"password":password}, os.getenv('JWT_SECRET_KEY'))
         activation_link = f"http://127.0.0.1:5000/activate?link={link}"
         msg = Message(subject='Activate your Account', sender=os.getenv('MAIL_USERNAME'), recipients=[email])
-        msg.body = f"Hey, {username} To activate your account. Click the link : {activation_link}"
+        msg.body = "Hey,"+ username + "To activate your account. Click the link : " + activation_link
         mail.send(msg)
         return jsonify({'message': 'activation link sent to your email'}), 400
 
 @app.route('/activate',methods=['GET'])
 def activate():
-    link = request.args.get('link')
+    link = request.args.get('link') 
     if link:
         decoded_link = decode(link, os.getenv('JWT_SECRET_KEY'), algorithms=['HS256'])
         email = decoded_link.get('email')
