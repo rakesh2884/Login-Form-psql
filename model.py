@@ -9,7 +9,6 @@ class User(db.Model):
     username = db.Column(db.String(100), unique=True, nullable=False)
     password_hash = db.Column(db.String(120), nullable=False)
     email = db.Column(db.String(100))
-    is_active=db.Column(db.Boolean,default=True)
     is_valid=db.Column(db.Boolean,default=True)
     
     def set_password(self, password):
