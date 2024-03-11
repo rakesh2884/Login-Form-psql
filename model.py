@@ -10,8 +10,8 @@ class User(db.Model):
     password_hash = db.Column(db.String(120), nullable=False)
     email = db.Column(db.String(100))
     is_active=db.Column(db.Boolean,default=True)
-
-
+    is_valid=db.Column(db.Boolean,default=True)
+    
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
@@ -25,5 +25,4 @@ class User(db.Model):
     def remove(self):
         db.session.delete(self)
         db.session.commit()
-
 db.create_all()
