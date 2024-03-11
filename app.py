@@ -5,10 +5,13 @@ from flask_mail import Mail, Message
 from jwt import encode, decode
 import base64
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_sqlalchemy import SQLAlchemy
-
+import time
+from datetime import timedelta
+from flask import session, app
 
 load_dotenv()
+arr=[]
+arr1=[]
 app = Flask(__name__)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('SQLALCHEMY_DATABASE_URI')
@@ -20,6 +23,7 @@ app.config['MAIL_USE_SSL'] = os.getenv('MAIL_USE_SSL')
 app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS')
 app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
+app.config['SECRET_KEY'] = 'xxxxxxxxx'
 
 mail = Mail(app)
 from model import User
@@ -54,10 +58,10 @@ def login():
             login_attempts[username] = 1
 
         if login_attempts[username] >= 3:
-            link = encode({"email": email}, os.getenv('JWT_SECRET_KEY'))
+            link = encode({"email": email,"action": "deactivate", "timestamp": int(time.time())}, os.getenv('JWT_SECRET_KEY'))
             activation_link = f"http://127.0.0.1:5000/deactivate?link={link}"
             msg = Message(subject='Unauthorized Access', sender=os.getenv('MAIL_USERNAME'), recipients=[email])
-            msg.body = "Hey "+ username + "Your account is temporarily locked due to multiple login attempts. Click the link to deactivate your account:" + activation_link
+            msg.body = "Hey "+ username + " Your account is temporarily locked due to multiple login attempts. Click the link to deactivate your account:" + activation_link
             mail.send(msg)
             return jsonify({'message': 'Last attempt failed (unauthorized access), deactivation link sent to your email'}), 400
         else:
@@ -70,17 +74,23 @@ def login():
 @app.route('/deactivate', methods=['GET'])
 def deactivate():
     link = request.args.get('link')
-    if link:
-        decoded_link = decode(link, os.getenv('JWT_SECRET_KEY'), algorithms=['HS256'])
-        email = decoded_link.get('email')
-        user = User.query.filter_by(email=email).first()
-        if user:
-            User.is_active=False
-            return jsonify({'message': 'Account deactivated successfully'}), 200
-        else:
-            return jsonify({'message': 'User does not exist'}), 400
+    if link in arr1:
+        User.is_valid=True
     else:
-        return jsonify({'message': 'link not provided'}), 400
+        User.is_valid=False
+        arr1.append(link)
+    if link and User.is_valid!=True:
+            decoded_link = decode(link, os.getenv('JWT_SECRET_KEY'), algorithms=['HS256'])
+            email = decoded_link.get('email')
+            User.is_valid=True
+            user = User.query.filter_by(email=email).first()
+            if user:
+                User.is_active=False
+                return jsonify({'message':'Account deactivated successfully'})
+            else:
+                return jsonify({'message': 'User does not exist'}), 400
+    else:
+        return jsonify({'message':'Link is not valid'})
 @app.route('/get_activate',methods=['GET','POST'])
 def get_activate():
     data = request.get_json()
@@ -91,7 +101,7 @@ def get_activate():
     if not user:
         return jsonify({'message': 'User does not exist'}), 400
     else:
-        link = encode({"email": email,"password":password}, os.getenv('JWT_SECRET_KEY'))
+        link = encode({"email": email,"password":password,"action": "activate", "timestamp": int(time.time())}, os.getenv('JWT_SECRET_KEY'))
         activation_link = f"http://127.0.0.1:5000/activate?link={link}"
         msg = Message(subject='Activate your Account', sender=os.getenv('MAIL_USERNAME'), recipients=[email])
         msg.body = "Hey,"+ username + "To activate your account. Click the link : " + activation_link
@@ -100,11 +110,18 @@ def get_activate():
 
 @app.route('/activate',methods=['GET'])
 def activate():
-    link = request.args.get('link') 
-    if link:
+    res = str(session.items())
+    link = request.args.get('link')
+    if link in arr:
+        User.is_valid=False
+    else:
+        User.is_valid=True
+        arr.append(link)
+    if link and User.is_valid!=False:
         decoded_link = decode(link, os.getenv('JWT_SECRET_KEY'), algorithms=['HS256'])
         email = decoded_link.get('email')
         password=decoded_link.get('password')
+        User.is_valid=False
         user = User.query.filter_by(email=email,password_hash=password).first()
         if user:
             User.is_active=True
@@ -112,7 +129,7 @@ def activate():
         else:
             return jsonify({'message': 'User does not exist'}), 400
     else:
-        return jsonify({'message': 'link not provided'}), 400
+        return jsonify({'message': 'link is not valid'}), 400
 
 
 @app.route('/display',methods=['GET','POST'])
