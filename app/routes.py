@@ -1,35 +1,17 @@
-from flask import Flask, request, jsonify
-import os
-from dotenv import load_dotenv
-from flask_mail import Mail, Message
-from jwt import encode, decode
-import base64
-from werkzeug.security import generate_password_hash, check_password_hash
-import time
-from datetime import timedelta
-from flask import session, app
+from flask import Blueprint, request, jsonify
+from .models import User
+from flask_mail import Message
+from app import mail
 
-load_dotenv()
+from jwt import encode, decode
+import os
+import time
 arr=[]
 arr1=[]
 active_user=[]
-app = Flask(__name__)
+app = Blueprint('app', __name__)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('SQLALCHEMY_DATABASE_URI')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = os.getenv('SQLALCHEMY_TRACK_MODIFICATIONS')
-app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY')
-app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER')
-app.config['MAIL_PORT'] = os.getenv('MAIL_PORT')
-app.config['MAIL_USE_SSL'] = os.getenv('MAIL_USE_SSL')
-app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS')
-app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
-app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
-app.config['SECRET_KEY'] = 'xxxxxxxxx'
-
-mail = Mail(app)
-from model import User
-
-@app.route('/register', methods=['POST'])
+@app.route('/register', methods=['POST','GET'])
 def register():
     data = request.get_json()
     username = data['username']
@@ -44,7 +26,7 @@ def register():
     return jsonify({'message': 'User registered successfully'}), 201
 
 login_attempts = {}
-@app.route('/login', methods=['POST'])
+@app.route('/login', methods=['POST','GET'])
 def login():
     data = request.get_json()
     username = data['username']
@@ -73,7 +55,7 @@ def login():
     else:
         token = encode({"email": email,"action": "login", "timestamp": int(time.time())}, os.getenv('JWT_SECRET_KEY'))
         return jsonify({'message': 'Login successful','username':username,'email':email,'token': token}), 400
-    
+
 @app.route('/deactivate', methods=['GET'])
 def deactivate():
     link = request.args.get('link')
@@ -95,7 +77,8 @@ def deactivate():
                 return jsonify({'message': 'User does not exist'}), 400
     else:
         return jsonify({'message':'Link is not valid'})
-@app.route('/get_activate',methods=['GET','POST'])
+
+@app.route('/get_activate', methods=['POST','GET'])
 def get_activate():
     data = request.get_json()
     username = data['username']
@@ -112,9 +95,8 @@ def get_activate():
         mail.send(msg)
         return jsonify({'message': 'activation link sent to your email'}), 400
 
-@app.route('/activate',methods=['GET'])
+@app.route('/activate', methods=['GET'])
 def activate():
-    res = str(session.items())
     link = request.args.get('link')
     if link in arr:
         User.is_valid=False
@@ -137,14 +119,11 @@ def activate():
     else:
         return jsonify({'message': 'link is not valid'}), 400
 
-
-@app.route('/display',methods=['GET','POST'])
+@app.route('/display', methods=['POST','GET'])
 def display():
     users=User.query.all()
-    arr=[]
+    qrr=[]
     for user in users:
         lst=([{'id': user.id, 'username':user.username,'email':user.email}])
-        arr.append(lst)
-    return ({'users': arr}),201
-if __name__ == '__main__':
-    app.run(debug=True)
+        qrr.append(lst)
+    return ({'users': qrr}),201
